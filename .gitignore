@@ -1,0 +1,17 @@
+# Private stats sheet — keep local only, never commit
+sluggers_chemistry - Modded Stats.csv
+
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+.Python
+.venv/
+venv/
+env/
+
+# OS / editor
+.DS_Store
+.idea/
+.vscode/
+*.swp
