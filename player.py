@@ -1,4 +1,4 @@
-"""Player model."""
+"""Player stats from CSV (roster templates, not tied to a team)."""
 
 from __future__ import annotations
 
@@ -8,7 +8,7 @@ from typing import Any
 
 @dataclass
 class Player:
-    """Player stats with attributes and matching getters for each stat-sheet field."""
+    """Base player stats loaded from the spreadsheet."""
 
     player: str
     hit_trajectory: str
