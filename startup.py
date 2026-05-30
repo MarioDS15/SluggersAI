@@ -148,7 +148,6 @@ def load_all_players() -> dict[str, Player]:
 
 PLAYERS: dict[str, Player] = load_all_players()
 
-
 def _lookup_player(name: str, players: dict[str, Player]) -> Player | None:
     key = name.strip()
     if not key:

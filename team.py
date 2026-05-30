@@ -41,6 +41,29 @@ POSITION_LABELS = {
     RIGHT_FIELD: "Right Field",
 }
 
+# Defensive roles for one-hot encoding (same order as DEFENSIVE_POSITIONS)
+ROLE_ENCODING: tuple[str, ...] = DEFENSIVE_POSITIONS
+
+
+def role_one_hot_columns() -> list[str]:
+    """Column names: role_<position_key> for each defensive role."""
+    return [f"role_{role}" for role in ROLE_ENCODING]
+
+
+def encode_role(role: str) -> dict[str, int]:
+    """One-hot encode a defensive role. Empty role string yields all zeros."""
+    columns = {col: 0 for col in role_one_hot_columns()}
+    if role and role in ROLE_ENCODING:
+        columns[f"role_{role}"] = 1
+    return columns
+
+
+def role_encoding_index(role: str) -> int | None:
+    """Index of a role in ROLE_ENCODING, or None if unknown."""
+    if role not in ROLE_ENCODING:
+        return None
+    return ROLE_ENCODING.index(role)
+
 
 def relation_key(position_a: str, position_b: str) -> str:
     """Canonical relation key: earlier position first, e.g. 'pitcher to catcher'."""

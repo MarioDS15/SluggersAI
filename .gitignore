@@ -1,5 +1,6 @@
 # Private stats sheet — keep local only, never commit
 sluggers_chemistry - Modded Stats.csv
+match_datasheet.csv
 
 # Python
 __pycache__/

@@ -5,6 +5,9 @@ from __future__ import annotations
 from dataclasses import dataclass
 from typing import Any
 
+# Canonical player list for one-hot encoding (filled by register_player_encoding)
+PLAYER_ENCODING: tuple[str, ...] = ()
+
 
 @dataclass
 class Player:
@@ -122,3 +125,31 @@ class Player:
             "Good Chemistry": self.get_good_chemistry(),
             "Bad Chemistry": self.get_bad_chemistry(),
         }
+
+
+def register_player_encoding(player_names: list[str]) -> None:
+    """Set the ordered player list used for one-hot columns (call after roster load)."""
+    global PLAYER_ENCODING
+    PLAYER_ENCODING = tuple(sorted(player_names))
+
+
+def player_one_hot_columns() -> list[str]:
+    """Column names: player_<name> for each character in PLAYER_ENCODING."""
+    return [f"player_{name}" for name in PLAYER_ENCODING]
+
+
+def encode_player(name: str) -> dict[str, int]:
+    """One-hot encode a player name. All keys are 0 except the matching player."""
+    columns = {col: 0 for col in player_one_hot_columns()}
+    key = f"player_{name}"
+    if key in columns:
+        columns[key] = 1
+    return columns
+
+
+def player_encoding_index(name: str) -> int | None:
+    """Index of a player in PLAYER_ENCODING, or None if unknown."""
+    try:
+        return PLAYER_ENCODING.index(name)
+    except ValueError:
+        return None

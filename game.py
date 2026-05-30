@@ -4,22 +4,32 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 
+from player import Player as RosterPlayer
 from startup import PLAYERS, TEAM_NAMES
 from team import Team
 
 TeamPlayer = Team.Player
 
-STADIUMS = (
-    "Mario Stadium",
-    "Peach Garden",
-    "Donkey Kong Jungle",
-    "Luigi's Mansion",
-    "Bowser Castle",
-    "Wario City",
-    "Daisy Cruiser",
-    "Yoshi Park",
-    "Toy Field",
-)
+# Size: 1 (low) → 3 (high). Hazard / obstacles: 0 (low) → 2 (high).
+Stadiums = [
+    {"name": "Mario Stadium (Day)", "size": 2, "hazard": 0, "obstacles": 0},
+    {"name": "Mario Stadium (Night)", "size": 2, "hazard": 0, "obstacles": 0},
+    {"name": "Luigi Mansion (Night)", "size": 1, "hazard": 2, "obstacles": 2},
+    {"name": "Daisy Cruiser (Day)", "size": 1, "hazard": 0, "obstacles": 2},
+    {"name": "Daisy Cruiser (Night)", "size": 1, "hazard": 1, "obstacles": 1},
+    {"name": "Peach Ice Garden (Day)", "size": 3, "hazard": 2, "obstacles": 2},
+    {"name": "Peach Ice Garden (Night)", "size": 3, "hazard": 2, "obstacles": 2},
+    {"name": "Yoshi Park (Day)", "size": 1, "hazard": 2, "obstacles": 2},
+    {"name": "Yoshi Park (Night)", "size": 1, "hazard": 2, "obstacles": 2},
+    {"name": "DK Jungle (Day)", "size": 2, "hazard": 2, "obstacles": 0},
+    {"name": "DK Jungle (Night)", "size": 2, "hazard": 2, "obstacles": 0},
+    {"name": "Bowser Castle (Night)", "size": 3, "hazard": 2, "obstacles": 0},
+    {"name": "Wario City (Day)", "size": 2, "hazard": 2, "obstacles": 0},
+    {"name": "Wario City (Night)", "size": 2, "hazard": 0, "obstacles": 0},
+    {"name": "Bowser Jr Playroom (Day)", "size": 3, "hazard": 0, "obstacles": 0},
+]
+
+STADIUMS = tuple(s["name"] for s in Stadiums)
 
 INNING_OPTIONS = (1, 3, 5, 7, 9)
 
@@ -38,6 +48,17 @@ class Game:
 
     def get_stadium(self) -> str:
         return self.stadium
+
+    def get_stadium_info(self) -> dict[str, int]:
+        """Size 1–3; hazard and obstacles 0–2."""
+        for entry in Stadiums:
+            if entry["name"].casefold() == self.stadium.casefold():
+                return {
+                    "size": int(entry["size"]),
+                    "hazard": int(entry["hazard"]),
+                    "obstacles": int(entry["obstacles"]),
+                }
+        return {"size": 0, "hazard": 0, "obstacles": 0}
 
     def get_team_1_captain(self) -> TeamPlayer:
         return self.team_1_captain
@@ -74,7 +95,7 @@ class Game:
         )
 
 
-def _lookup_player(name: str) -> Player | None:
+def _lookup_player(name: str) -> RosterPlayer | None:
     key = name.strip()
     if not key:
         return None
