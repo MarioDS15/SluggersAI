@@ -2,16 +2,33 @@
 
 Builds `Data/results.csv` from Mario Super Sluggers roster stats, team lineups, game settings, and chemistry/synergy.
 
-**Run:** `python3 startup.py` (writes `Data/results.csv`). Edit `TEAM_CONFIG` in `startup.py` to skip interactive lineup prompts.
+**Run:** `python3 startup.py` (writes `Data/results.csv`). At startup, choose **y** to load teams and game settings from `config.json`, or **n** for interactive prompts.
 
-**Data:**
-
-- `Data/PlayerStats.csv` — player stats and chemistry lists (local only, gitignored)
-- `Data/results.csv` — training rows (gitignored)
+**Config:** `config.json` — default lineups and game settings when you answer **y** at startup.
 
 ---
 
-## Modules
+## Project layout
+
+```
+SlugAI/
+├── startup.py          # Entry point (run this)
+├── config.json         # Optional teams + game preset
+├── Data/               # Data extraction code + CSVs
+│   ├── player.py
+│   ├── team.py
+│   ├── synergy.py
+│   ├── game.py
+│   ├── datasheet.py
+│   ├── PlayerStats.csv # gitignored
+│   └── results.csv     # gitignored
+├── ML/                 # Model training (next phase)
+└── GUI/                # UI (planned)
+```
+
+---
+
+## Modules (in `Data/`)
 
 ### `player.py`
 Roster character (stats from CSV, not tied to a team).
@@ -39,15 +56,15 @@ Chemistry between positions and adjacent batters.
 Match rules and stadium.
 
 - `Game` — stadium, captains, innings, star power, mercy, items
-- `setup_game` — prompt or accept teams and build a `Game`
+- `setup_game` — interactive prompts for match settings
+- `game_from_config` — build a `Game` from `config.json`
 - `print_game_verification` — print game summary
 
-### `startup.py`
+### `startup.py` (repo root)
 Load roster and teams; main entry point.
 
 - `load_all_players` — read `PlayerStats.csv` into `PLAYERS`
-- `parse_teams_from_config` — build teams from `TEAM_CONFIG` text
-- `load_teams` — config file or interactive `run_team_setup`
+- `load_setup_from_json` / `load_setup_interactive` — teams + game from JSON or prompts
 - `run_results_export` — teams → game setup → write `results.csv`
 
 ### `datasheet.py`

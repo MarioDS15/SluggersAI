@@ -218,7 +218,7 @@ FIELD_SYNERGY_COLS = {
 
 BATTER_META_COLS = ["Player", "Captain"]
 
-DATA_DIR = Path(__file__).resolve().parent / "Data"
+DATA_DIR = Path(__file__).resolve().parent
 DEFAULT_OUTPUT = DATA_DIR / "results.csv"
 
 # --- Schema: column list builders (start) ---

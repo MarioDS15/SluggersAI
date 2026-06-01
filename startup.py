@@ -1,48 +1,31 @@
-"""Load players from CSV and run interactive team setup on startup."""
+"""Load players from CSV and run team / game setup (JSON or interactive)."""
 
 from __future__ import annotations
 
 import csv
-import re
+import json
+import sys
 from pathlib import Path
 from typing import Any
 
-from player import Player
-from team import DEFENSIVE_POSITIONS, POSITION_LABELS, Team
+ROOT_DIR = Path(__file__).resolve().parent
+DATA_DIR = ROOT_DIR / "Data"
+CONFIG_PATH = ROOT_DIR / "config.json"
+
+if str(DATA_DIR) not in sys.path:
+    sys.path.insert(0, str(DATA_DIR))
+
+from datasheet import register_encodings_from_roster  # noqa: E402
+from game import Game, game_from_config, print_game_verification, setup_game  # noqa: E402
+from player import Player  # noqa: E402
+from team import DEFENSIVE_POSITIONS, POSITION_LABELS, Team  # noqa: E402
 
 TeamPlayer = Team.Player
 
-DATA_DIR = Path(__file__).resolve().parent / "Data"
 CSV_PATH = DATA_DIR / "PlayerStats.csv"
 LINEUP_SIZE = 9
 NUM_TEAMS = 2
 TEAM_NAMES = ("Team 1", "Team 2")
-
-TEAM_CONFIG = """
-[Team 1]
-batting: Mario, Luigi, Daisy, Peach, Yoshi, Toadette, Bowser, Wario, Waluigi
-pitcher: Peach
-catcher: Luigi
-1st_base: Mario
-2nd_base: Daisy
-3rd_base: Bowser
-shortstop: Waluigi
-left_field: Yoshi
-center_field: Toadette
-right_field: Wario
-
-[Team 2]
-batting: Donkey Kong, Diddy Kong, Dixie Kong, Funky Kong, Tiny Kong, Baby DK, Kritter, King K. Rool, Birdo
-pitcher: King K. Rool
-catcher: Kritter
-1st_base: Donkey Kong
-2nd_base: Diddy Kong
-3rd_base: Dixie Kong
-shortstop: Funky Kong
-left_field: Tiny Kong
-center_field: Baby DK
-right_field: Birdo
-"""
 
 STAT_HEADERS = [
     "Player",
@@ -140,10 +123,8 @@ def load_all_players() -> dict[str, Player]:
 
 
 PLAYERS: dict[str, Player] = load_all_players()
-
-from datasheet import register_encodings_from_roster  # noqa: E402
-
 register_encodings_from_roster(PLAYERS)
+
 
 def _lookup_player(name: str, players: dict[str, Player]) -> Player | None:
     key = name.strip()
@@ -170,15 +151,19 @@ def _require_player(
 
 def _build_team_from_data(
     team_name: str,
-    data: dict[str, str],
+    data: dict[str, Any],
     players: dict[str, Player],
     team_number: int,
 ) -> Team:
     team = Team(number=team_number)
     if "batting" not in data:
-        raise ValueError(f"[{team_name}] missing 'batting:' line")
+        raise ValueError(f"[{team_name}] missing batting order")
 
-    batter_names = [n.strip() for n in data["batting"].split(",") if n.strip()]
+    if isinstance(data["batting"], list):
+        batter_names = [str(n).strip() for n in data["batting"] if str(n).strip()]
+    else:
+        batter_names = [n.strip() for n in str(data["batting"]).split(",") if n.strip()]
+
     if len(batter_names) != LINEUP_SIZE:
         raise ValueError(
             f"[{team_name}] batting must have {LINEUP_SIZE} players, got {len(batter_names)}"
@@ -195,7 +180,7 @@ def _build_team_from_data(
             label = POSITION_LABELS[position]
             raise ValueError(f"[{team_name}] missing defensive position: {label}")
         defense[position] = _require_player(
-            data[position],
+            str(data[position]),
             players,
             team_name,
             POSITION_LABELS[position],
@@ -209,54 +194,63 @@ def _build_team_from_data(
     return team
 
 
-def parse_teams_from_config(
-    config: str, players: dict[str, Player]
+def _team_entry_to_data(entry: dict[str, Any]) -> dict[str, Any]:
+    """Convert one JSON team object into internal position map."""
+    data: dict[str, Any] = {}
+
+    batting = entry.get("batting", [])
+    if isinstance(batting, list):
+        data["batting"] = batting
+    else:
+        data["batting"] = str(batting)
+
+    defense = entry.get("defense", {})
+    if not isinstance(defense, dict):
+        raise ValueError("team 'defense' must be an object")
+
+    for key, value in defense.items():
+        normalized = _POSITION_ALIASES.get(str(key).strip().lower(), str(key).strip().lower())
+        data[normalized] = str(value).strip()
+
+    return data
+
+
+def load_json_config(path: Path = CONFIG_PATH) -> dict[str, Any]:
+    if not path.exists():
+        raise FileNotFoundError(f"Config not found: {path}")
+    with path.open(encoding="utf-8") as f:
+        return json.load(f)
+
+
+def parse_teams_from_json(
+    config: dict[str, Any], players: dict[str, Player]
 ) -> list[tuple[str, Team]]:
-    """Parse TEAM_CONFIG into exactly two teams: Team 1 and Team 2."""
-    config = config.strip()
-    if not config:
-        return []
+    """Parse config.json 'teams' into two Team objects."""
+    teams_cfg = config.get("teams")
+    if not isinstance(teams_cfg, list) or len(teams_cfg) != NUM_TEAMS:
+        raise ValueError(f"config must have exactly {NUM_TEAMS} teams")
 
-    team_data: list[dict[str, str]] = []
-    current_data: dict[str, str] | None = None
-
-    for line in config.splitlines():
-        line = line.strip()
-        if not line or line.startswith("#"):
-            continue
-
-        if re.match(r"^\[.+\]$", line):
-            if current_data is not None:
-                team_data.append(current_data)
-            current_data = {}
-            continue
-
-        if current_data is None:
-            raise ValueError("TEAM_CONFIG must start with [Team 1]")
-
-        key, _, value = line.partition(":")
-        if not value.strip():
-            team_label = TEAM_NAMES[len(team_data)] if len(team_data) < NUM_TEAMS else "Team"
-            raise ValueError(f"[{team_label}] empty value for {key!r}")
-
-        normalized_key = _POSITION_ALIASES.get(key.strip().lower(), key.strip().lower())
-        current_data[normalized_key] = value.strip()
-
-    if current_data is not None:
-        team_data.append(current_data)
-
-    if len(team_data) != NUM_TEAMS:
-        raise ValueError(
-            f"TEAM_CONFIG must define exactly {NUM_TEAMS} teams, found {len(team_data)}"
+    result: list[tuple[str, Team]] = []
+    for i, entry in enumerate(teams_cfg):
+        team_name = entry.get("name", TEAM_NAMES[i])
+        team_data = _team_entry_to_data(entry)
+        result.append(
+            (
+                str(team_name),
+                _build_team_from_data(str(team_name), team_data, players, i + 1),
+            )
         )
+    return result
 
-    return [
-        (
-            TEAM_NAMES[i],
-            _build_team_from_data(TEAM_NAMES[i], team_data[i], players, i + 1),
-        )
-        for i in range(NUM_TEAMS)
-    ]
+
+def _prompt_yes_no(prompt: str) -> bool:
+    while True:
+        answer = input(prompt).strip().lower()
+        if answer in ("y", "yes"):
+            return True
+        if answer in ("n", "no"):
+            return False
+        print("  Enter y/yes or n/no.")
 
 
 def _prompt_player(players: dict[str, Player], prompt: str, team: Team) -> TeamPlayer:
@@ -298,16 +292,6 @@ def _prompt_team(players: dict[str, Player], team_number: int) -> Team:
     return team
 
 
-def load_teams() -> list[tuple[str, Team]]:
-    """Load Team 1 and Team 2 from TEAM_CONFIG or interactive prompts."""
-    print(f"Loaded {len(PLAYERS)} players from roster.\n")
-    if TEAM_CONFIG.strip():
-        teams = parse_teams_from_config(TEAM_CONFIG, PLAYERS)
-        print("Loaded Team 1 and Team 2 from TEAM_CONFIG.")
-        return teams
-    return run_team_setup()
-
-
 def run_team_setup() -> list[tuple[str, Team]]:
     """Prompt for Team 1 and Team 2 lineups."""
     teams: list[tuple[str, Team]] = []
@@ -315,6 +299,22 @@ def run_team_setup() -> list[tuple[str, Team]]:
         print(f"--- {name} ---")
         teams.append((name, _prompt_team(PLAYERS, i + 1)))
     return teams
+
+
+def load_setup_from_json() -> tuple[list[tuple[str, Team]], Game]:
+    config = load_json_config()
+    teams = parse_teams_from_json(config, PLAYERS)
+    game_cfg = config.get("game")
+    if not isinstance(game_cfg, dict):
+        raise ValueError("config.json must include a 'game' object")
+    game = game_from_config(game_cfg, teams)
+    return teams, game
+
+
+def load_setup_interactive() -> tuple[list[tuple[str, Team]], Game]:
+    teams = run_team_setup()
+    game = setup_game(teams)
+    return teams, game
 
 
 def print_teams_verification(teams: list[tuple[str, Team]]) -> None:
@@ -328,14 +328,19 @@ def print_teams_verification(teams: list[tuple[str, Team]]) -> None:
 
 
 def run_results_export() -> None:
-    """Load lineups, prompt for game settings (including captains), write results.csv."""
-    from game import print_game_verification, setup_game
+    """Load lineups and game settings, then write Data/results.csv."""
     from datasheet import DEFAULT_OUTPUT, create_results_csv
 
-    teams = load_teams()
-    print_teams_verification(teams)
+    print(f"Loaded {len(PLAYERS)} players from roster.\n")
 
-    game = setup_game(teams)
+    if _prompt_yes_no(f"Use lineup and game settings from {CONFIG_PATH.name}? (y/n): "):
+        print(f"Loading from {CONFIG_PATH}...")
+        teams, game = load_setup_from_json()
+    else:
+        print("Entering interactive setup...")
+        teams, game = load_setup_interactive()
+
+    print_teams_verification(teams)
     print_game_verification(game)
 
     if DEFAULT_OUTPUT.exists():

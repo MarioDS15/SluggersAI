@@ -1,2 +1,0 @@
-Abilities one hot encoding
-Star power one hot encoding

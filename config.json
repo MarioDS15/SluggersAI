@@ -1,0 +1,63 @@
+{
+  "game": {
+    "stadium": "Mario Stadium (Day)",
+    "team_1_captain": "Mario",
+    "team_2_captain": "Donkey Kong",
+    "star_power": true,
+    "innings": 7,
+    "mercy_rule": false,
+    "items": true
+  },
+  "teams": [
+    {
+      "name": "Team 1",
+      "batting": [
+        "Mario",
+        "Luigi",
+        "Daisy",
+        "Peach",
+        "Yoshi",
+        "Toadette",
+        "Bowser",
+        "Wario",
+        "Waluigi"
+      ],
+      "defense": {
+        "pitcher": "Peach",
+        "catcher": "Luigi",
+        "1st_base": "Mario",
+        "2nd_base": "Daisy",
+        "3rd_base": "Bowser",
+        "shortstop": "Waluigi",
+        "left_field": "Yoshi",
+        "center_field": "Toadette",
+        "right_field": "Wario"
+      }
+    },
+    {
+      "name": "Team 2",
+      "batting": [
+        "Donkey Kong",
+        "Diddy Kong",
+        "Dixie Kong",
+        "Funky Kong",
+        "Tiny Kong",
+        "Baby DK",
+        "Kritter",
+        "King K. Rool",
+        "Birdo"
+      ],
+      "defense": {
+        "pitcher": "King K. Rool",
+        "catcher": "Kritter",
+        "1st_base": "Donkey Kong",
+        "2nd_base": "Diddy Kong",
+        "3rd_base": "Dixie Kong",
+        "shortstop": "Funky Kong",
+        "left_field": "Tiny Kong",
+        "center_field": "Baby DK",
+        "right_field": "Birdo"
+      }
+    }
+  ]
+}
