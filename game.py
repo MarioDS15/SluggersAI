@@ -5,8 +5,9 @@ from __future__ import annotations
 from dataclasses import dataclass
 
 from player import Player as RosterPlayer
-from startup import PLAYERS, TEAM_NAMES
 from team import Team
+
+TEAM_LABELS = ("Team 1", "Team 2")
 
 TeamPlayer = Team.Player
 
@@ -46,9 +47,6 @@ class Game:
     mercy_rule: bool
     items: bool
 
-    def get_stadium(self) -> str:
-        return self.stadium
-
     def get_stadium_info(self) -> dict[str, int]:
         """Size 1–3; hazard and obstacles 0–2."""
         for entry in Stadiums:
@@ -59,24 +57,6 @@ class Game:
                     "obstacles": int(entry["obstacles"]),
                 }
         return {"size": 0, "hazard": 0, "obstacles": 0}
-
-    def get_team_1_captain(self) -> TeamPlayer:
-        return self.team_1_captain
-
-    def get_team_2_captain(self) -> TeamPlayer:
-        return self.team_2_captain
-
-    def get_star_power(self) -> bool:
-        return self.star_power
-
-    def get_innings(self) -> int:
-        return self.innings
-
-    def get_mercy_rule(self) -> bool:
-        return self.mercy_rule
-
-    def get_items(self) -> bool:
-        return self.items
 
     def format_summary(self) -> str:
         on_off = lambda v: "On" if v else "Off"
@@ -96,6 +76,8 @@ class Game:
 
 
 def _lookup_player(name: str) -> RosterPlayer | None:
+    from startup import PLAYERS
+
     key = name.strip()
     if not key:
         return None
@@ -140,16 +122,28 @@ def _prompt_stadium() -> str:
 
 
 def _prompt_captain(team_label: str, team: Team | None = None) -> TeamPlayer:
-    hint = " (must be on this team's lineup)" if team else ""
-    team_number = 1 if team_label == TEAM_NAMES[0] else 2
+    team_number = 1 if team_label == TEAM_LABELS[0] else 2
+    if team is not None:
+        lineup = sorted(
+            {p.get_player(): p for p in team.get_all_players()}.values(),
+            key=lambda p: p.get_player(),
+        )
+        print(f"\nSelect {team_label} captain (must be on this lineup):")
+        for i, player in enumerate(lineup, start=1):
+            print(f"  {i}. {player.get_player()}")
+        while True:
+            choice = input(f"{team_label} captain (number or name): ").strip()
+            if choice.isdigit():
+                index = int(choice) - 1
+                if 0 <= index < len(lineup):
+                    return lineup[index]
+            player = _find_lineup_player(team, choice)
+            if player is not None:
+                return player
+            print(f"  {choice!r} is not on {team_label}. Try again.")
+
     while True:
-        name = input(f"{team_label} captain{hint}: ").strip()
-        if team is not None:
-            player = _find_lineup_player(team, name)
-            if player is None:
-                print(f"  {name!r} is not on {team_label}. Try again.")
-                continue
-            return player
+        name = input(f"{team_label} captain: ").strip()
         roster_player = _lookup_player(name)
         if roster_player is None:
             print(f"  Player not found: {name!r}. Try again.")
@@ -175,8 +169,8 @@ def setup_game(teams: list[tuple[str, Team]] | None = None) -> Game:
     team_1 = teams[0][1] if teams and len(teams) >= 1 else None
     team_2 = teams[1][1] if teams and len(teams) >= 2 else None
 
-    team_1_captain = _prompt_captain(TEAM_NAMES[0], team_1)
-    team_2_captain = _prompt_captain(TEAM_NAMES[1], team_2)
+    team_1_captain = _prompt_captain(TEAM_LABELS[0], team_1)
+    team_2_captain = _prompt_captain(TEAM_LABELS[1], team_2)
 
     star_power = _prompt_yes_no("Star Power (on/off): ")
     innings = _prompt_innings()

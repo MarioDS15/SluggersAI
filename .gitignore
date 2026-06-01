@@ -1,6 +1,6 @@
-# Private stats sheet — keep local only, never commit
-sluggers_chemistry - Modded Stats.csv
-match_datasheet.csv
+# Private data — keep local only, never commit
+Data/PlayerStats.csv
+Data/results.csv
 
 # Python
 __pycache__/

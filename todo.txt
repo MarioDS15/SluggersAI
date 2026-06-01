@@ -1,5 +1,2 @@
-Have teams be set in a different file
-
-Don't ask for 2nd team
-
-no team name
+Abilities one hot encoding
+Star power one hot encoding

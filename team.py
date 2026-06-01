@@ -41,29 +41,6 @@ POSITION_LABELS = {
     RIGHT_FIELD: "Right Field",
 }
 
-# Defensive roles for one-hot encoding (same order as DEFENSIVE_POSITIONS)
-ROLE_ENCODING: tuple[str, ...] = DEFENSIVE_POSITIONS
-
-
-def role_one_hot_columns() -> list[str]:
-    """Column names: role_<position_key> for each defensive role."""
-    return [f"role_{role}" for role in ROLE_ENCODING]
-
-
-def encode_role(role: str) -> dict[str, int]:
-    """One-hot encode a defensive role. Empty role string yields all zeros."""
-    columns = {col: 0 for col in role_one_hot_columns()}
-    if role and role in ROLE_ENCODING:
-        columns[f"role_{role}"] = 1
-    return columns
-
-
-def role_encoding_index(role: str) -> int | None:
-    """Index of a role in ROLE_ENCODING, or None if unknown."""
-    if role not in ROLE_ENCODING:
-        return None
-    return ROLE_ENCODING.index(role)
-
 
 def relation_key(position_a: str, position_b: str) -> str:
     """Canonical relation key: earlier position first, e.g. 'pitcher to catcher'."""
@@ -116,7 +93,6 @@ class Team:
     batting_players: list[Team.Player] = field(default_factory=list)
     positions: dict[str, Team.Player | None] = field(default_factory=empty_positions)
     relations: dict[str, int | None] = field(default_factory=empty_relations)
-    synergy_links: dict[str, list[str]] = field(default_factory=dict)
     batting_synergy: list[bool] = field(default_factory=list)
 
     def __post_init__(self) -> None:
@@ -141,18 +117,7 @@ class Team:
             return cls(team=team, stats=roster_player)
 
         def get_player(self) -> str:
-            return self.stats.get_player()
-
-        def get_team_number(self) -> int:
-            return self.team.number
-
-        def get_teammates(self) -> list[Team.Player]:
-            self_name = self.get_player()
-            return [
-                p
-                for p in self.team.get_all_players()
-                if p.get_player() != self_name
-            ]
+            return self.stats.player
 
         def has_good_chemistry_with(self, other: Team.Player) -> bool:
             return other.get_player() in self.stats.good_chemistry
@@ -175,58 +140,15 @@ class Team:
             players = [p for p in players if p is not exclude]
         return players
 
-    def get_batting_players(self) -> list[Team.Player]:
-        return list(self.batting_players)
-
-    def get_positions(self) -> dict[str, Team.Player | None]:
-        return dict(self.positions)
-
-    def get_relations(self) -> dict[str, int | None]:
-        return dict(self.relations)
-
-    def get_player_at(self, position: str) -> Team.Player | None:
-        if position not in DEFENSIVE_POSITIONS:
-            raise ValueError(f"Unknown position: {position!r}")
-        return self.positions[position]
-
     def set_position(self, position: str, player: Team.Player) -> None:
         if position not in DEFENSIVE_POSITIONS:
             raise ValueError(f"Unknown position: {position!r}")
         self.positions[position] = player
 
-    def clear_position(self, position: str) -> None:
-        if position not in DEFENSIVE_POSITIONS:
-            raise ValueError(f"Unknown position: {position!r}")
-        self.positions[position] = None
-
-    def get_relation(self, position_a: str, position_b: str) -> int | None:
-        return self.relations[relation_key(position_a, position_b)]
-
-    def update_relations(self) -> None:
-        from synergy import update_field_relations
-
-        update_field_relations(self)
-
-    def update_batting_synergy(self) -> None:
-        from synergy import update_batting_synergy
-
-        update_batting_synergy(self)
-
     def update_synergy(self) -> None:
         from synergy import update_team_synergy
 
         update_team_synergy(self)
-
-    def to_dict(self) -> dict[str, Any]:
-        return {
-            "team": self.number,
-            "batting_players": [p.get_player() for p in self.batting_players],
-            "positions": {
-                pos: p.get_player() if p else None
-                for pos, p in self.positions.items()
-            },
-            "relations": dict(self.relations),
-        }
 
     def format_summary(self, team_name: str = "Team") -> str:
         lines = [f"=== {team_name} ===", "", "Batting order:"]

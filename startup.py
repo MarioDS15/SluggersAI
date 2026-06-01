@@ -12,21 +12,12 @@ from team import DEFENSIVE_POSITIONS, POSITION_LABELS, Team
 
 TeamPlayer = Team.Player
 
-CSV_PATH = Path(__file__).resolve().parent / "sluggers_chemistry - Modded Stats.csv"
+DATA_DIR = Path(__file__).resolve().parent / "Data"
+CSV_PATH = DATA_DIR / "PlayerStats.csv"
 LINEUP_SIZE = 9
 NUM_TEAMS = 2
 TEAM_NAMES = ("Team 1", "Team 2")
 
-# ---------------------------------------------------------------------------
-# Edit TEAM_CONFIG for both teams (leave blank to enter lineups interactively).
-#
-# Exactly two blocks: [Team 1] then [Team 2]
-#   batting: 9 players, comma-separated (batting order)
-#   pitcher, catcher, 1st_base, 2nd_base, 3rd_base, shortstop,
-#   left_field, center_field, right_field: one player each
-#
-# Lines starting with # are ignored.
-# ---------------------------------------------------------------------------
 TEAM_CONFIG = """
 [Team 1]
 batting: Mario, Luigi, Daisy, Peach, Yoshi, Toadette, Bowser, Wario, Waluigi
@@ -69,6 +60,8 @@ STAT_HEADERS = [
     "Curve",
     "Stamina",
     "Ability",
+    "Pitching Star",
+    "Batting Star",
     "Good Chemistry",
     "Bad Chemistry",
 ]
@@ -123,7 +116,7 @@ def _parse_row(row: list[str]) -> dict[str, Any]:
             stats[header] = int(value)
         elif header in ("Good Chemistry", "Bad Chemistry"):
             stats[header] = _parse_chemistry(value)
-        elif header == "Ability":
+        elif header in ("Ability", "Pitching Star", "Batting Star"):
             stats[header] = value or None
         else:
             stats[header] = value
@@ -147,6 +140,10 @@ def load_all_players() -> dict[str, Player]:
 
 
 PLAYERS: dict[str, Player] = load_all_players()
+
+from datasheet import register_encodings_from_roster  # noqa: E402
+
+register_encodings_from_roster(PLAYERS)
 
 def _lookup_player(name: str, players: dict[str, Player]) -> Player | None:
     key = name.strip()
@@ -330,6 +327,23 @@ def print_teams_verification(teams: list[tuple[str, Team]]) -> None:
     print("\n2 teams configured.")
 
 
+def run_results_export() -> None:
+    """Load lineups, prompt for game settings (including captains), write results.csv."""
+    from game import print_game_verification, setup_game
+    from datasheet import DEFAULT_OUTPUT, create_results_csv
+
+    teams = load_teams()
+    print_teams_verification(teams)
+
+    game = setup_game(teams)
+    print_game_verification(game)
+
+    if DEFAULT_OUTPUT.exists():
+        DEFAULT_OUTPUT.unlink()
+
+    path = create_results_csv(teams, game, append=False)
+    print(f"\nResults written to: {path}")
+
+
 if __name__ == "__main__":
-    configured_teams = load_teams()
-    print_teams_verification(configured_teams)
+    run_results_export()

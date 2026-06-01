@@ -4,10 +4,135 @@ from __future__ import annotations
 
 import csv
 from pathlib import Path
-from typing import Any
+from typing import TYPE_CHECKING, Any
 
 from game import Game, STADIUMS
 from synergy import BAD_SYNERGY, GOOD_SYNERGY, NO_SYNERGY
+
+if TYPE_CHECKING:
+    from player import Player
+
+# --- One-hot encoding: constants (start) ---
+
+ABILITY_ENCODING: tuple[str, ...] = ()
+
+PITCHING_STAR_SKILLS: tuple[str, ...] = (
+    "Barrel Ball",
+    "Banana Ball",
+    "Breaking Ball",
+    "Change-Up",
+    "Fastball",
+    "Fireball",
+    "Flower Ball",
+    "Graffiti Ball",
+    "Heart Ball",
+    "Killer Ball",
+    "Liar Ball",
+    "Phony Ball",
+    "Rainbow Ball",
+    "Suction Ball",
+    "Tornado Ball",
+)
+
+BATTING_STAR_SKILLS: tuple[str, ...] = (
+    "Banana Swing",
+    "Barrel Swing",
+    "Breath Swing",
+    "Cannon Swing",
+    "Egg Swing",
+    "Fire Swing",
+    "Flower Swing",
+    "Fly Ball",
+    "Graffiti Swing",
+    "Ground Ball",
+    "Heart Swing",
+    "Liar Swing",
+    "Line Drive",
+    "Phony Swing",
+    "Tornado Swing",
+)
+
+PITCHING_STAR_ENCODING: tuple[str, ...] = ()
+BATTING_STAR_ENCODING: tuple[str, ...] = ()
+
+# --- One-hot encoding: constants (end) ---
+
+# --- One-hot encoding: registration (start) ---
+
+
+def register_ability_encoding(abilities: list[str]) -> None:
+    """Set the ordered ability list used for one-hot columns (call after roster load)."""
+    global ABILITY_ENCODING
+    unique = sorted({a.strip() for a in abilities if a and a.strip()})
+    ABILITY_ENCODING = tuple(unique)
+
+
+def register_pitching_star_encoding(stars: list[str]) -> None:
+    """Set pitching star list for one-hot columns (merges with PITCHING_STAR_SKILLS)."""
+    global PITCHING_STAR_ENCODING
+    from_csv = {s.strip() for s in stars if s and s.strip()}
+    merged = sorted(from_csv | set(PITCHING_STAR_SKILLS))
+    PITCHING_STAR_ENCODING = tuple(merged)
+
+
+def register_batting_star_encoding(stars: list[str]) -> None:
+    """Set batting star list for one-hot columns (merges with BATTING_STAR_SKILLS)."""
+    global BATTING_STAR_ENCODING
+    from_csv = {s.strip() for s in stars if s and s.strip()}
+    merged = sorted(from_csv | set(BATTING_STAR_SKILLS))
+    BATTING_STAR_ENCODING = tuple(merged)
+
+
+def register_encodings_from_roster(players: dict[str, Player]) -> None:
+    """Initialize all one-hot column encodings from loaded roster data."""
+    register_ability_encoding([p.ability for p in players.values() if p.ability])
+    register_pitching_star_encoding(
+        [p.pitching_star for p in players.values() if p.pitching_star]
+    )
+    register_batting_star_encoding(
+        [p.batting_star for p in players.values() if p.batting_star]
+    )
+
+# --- One-hot encoding: registration (end) ---
+
+# --- One-hot encoding: columns & encode (start) ---
+
+
+def ability_one_hot_columns() -> list[str]:
+    return [f"ability {name}" for name in ABILITY_ENCODING]
+
+
+def pitching_star_one_hot_columns() -> list[str]:
+    return [f"pitching star {name}" for name in PITCHING_STAR_ENCODING]
+
+
+def batting_star_one_hot_columns() -> list[str]:
+    return [f"batting star {name}" for name in BATTING_STAR_ENCODING]
+
+
+def encode_ability(ability: str | None) -> dict[str, int]:
+    columns = {col: 0 for col in ability_one_hot_columns()}
+    if ability and ability in ABILITY_ENCODING:
+        columns[f"ability {ability}"] = 1
+    return columns
+
+
+def encode_pitching_star(star: str | None) -> dict[str, int]:
+    columns = {col: 0 for col in pitching_star_one_hot_columns()}
+    if star and star in PITCHING_STAR_ENCODING:
+        columns[f"pitching star {star}"] = 1
+    return columns
+
+
+def encode_batting_star(star: str | None) -> dict[str, int]:
+    columns = {col: 0 for col in batting_star_one_hot_columns()}
+    if star and star in BATTING_STAR_ENCODING:
+        columns[f"batting star {star}"] = 1
+    return columns
+
+# --- One-hot encoding: columns & encode (end) ---
+
+# --- Match row builders (start) ---
 from team import (
     CATCHER,
     CENTER_FIELD,
@@ -15,17 +140,16 @@ from team import (
     LEFT_FIELD,
     PITCHER,
     RIGHT_FIELD,
-    ROLE_ENCODING,
     SECOND_BASE,
     SHORTSTOP,
     THIRD_BASE,
     Team,
-    encode_role,
     relation_key,
-    role_one_hot_columns,
 )
 
 LINEUP_SIZE = 9
+
+# --- Column definitions: game & stadium (start) ---
 
 gameCols = [
     "Winner",
@@ -39,7 +163,11 @@ gameCols = [
 
 stadiumCols = list(STADIUMS) + ["Size", "Hazard Level", "Obstacles Level"]
 
-pitcherCols = ["Curveball Speed", "Charge Pitch Speed", "Curve"]
+# --- Column definitions: game & stadium (end) ---
+
+# --- Column definitions: pitching & synergies (start) ---
+
+pitcherCols = ["Curveball Speed", "Charge Pitch Speed", "Curve", "Captain"]
 
 fieldSynergyCols = [
     "Pitch Synergy",
@@ -51,6 +179,10 @@ fieldSynergyCols = [
     "center field synergy",
     "right field synergy",
 ]
+
+# --- Column definitions: pitching & synergies (end) ---
+
+# --- Column definitions: batting & fielding (start) ---
 
 battingCols = [
     "Slap Hit Power",
@@ -67,6 +199,10 @@ fieldingStatCols = ["Fielding", "Outfield Throwing Speed"]
 
 TRAJECTORY_MAP = {"low": 0, "medium": 1, "high": 2}
 
+# --- Column definitions: batting & fielding (end) ---
+
+# --- Column definitions: synergy map (start) ---
+
 FIELD_SYNERGY_COLS = {
     "Pitch Synergy": (PITCHER, CATCHER),
     "1st base synergy": (PITCHER, FIRST_BASE),
@@ -78,42 +214,72 @@ FIELD_SYNERGY_COLS = {
     "right field synergy": (PITCHER, RIGHT_FIELD),
 }
 
-BATTER_STAT_COLS = battingCols + fieldingStatCols
+# --- Column definitions: synergy map (end) ---
 
-BATTER_META_COLS = ["Player"]
+BATTER_META_COLS = ["Player", "Captain"]
 
-DEFAULT_OUTPUT = Path(__file__).resolve().parent / "match_datasheet.csv"
+DATA_DIR = Path(__file__).resolve().parent / "Data"
+DEFAULT_OUTPUT = DATA_DIR / "results.csv"
+
+# --- Schema: column list builders (start) ---
 
 
 def build_all_columns() -> list[str]:
     """Full header: game settings once, then each team's data."""
     columns = list(gameCols) + list(stadiumCols)
-    role_cols = role_one_hot_columns()
+
+    ability_cols = ability_one_hot_columns()
+    pitching_star_cols = pitching_star_one_hot_columns()
+    batting_star_cols = batting_star_one_hot_columns()
 
     for team_num in (1, 2):
         prefix = f"Team {team_num}"
+        # Defense: field synergies
         for col in fieldSynergyCols:
             columns.append(f"{prefix} {col}")
+        # Pitching: pitcher stats + star skill
         for col in pitcherCols:
+            columns.append(f"{prefix} {col}")
+        for col in pitching_star_cols:
+            columns.append(f"{prefix} {col}")
+        # Defense: pitcher field ability
+        for col in ability_cols:
             columns.append(f"{prefix} {col}")
         for slot in range(1, LINEUP_SIZE + 1):
             slot_prefix = f"{prefix} Batter {slot}"
             for col in BATTER_META_COLS:
                 columns.append(f"{slot_prefix} {col}")
-            for col in role_cols:
+            # Batting: stats + star skill
+            for col in battingCols:
                 columns.append(f"{slot_prefix} {col}")
-            for col in BATTER_STAT_COLS:
+            for col in batting_star_cols:
+                columns.append(f"{slot_prefix} {col}")
+            # Defense: fielding stats + field ability
+            for col in fieldingStatCols:
+                columns.append(f"{slot_prefix} {col}")
+            for col in ability_cols:
                 columns.append(f"{slot_prefix} {col}")
 
     return columns
 
 
-def get_all_columns() -> list[str]:
-    return build_all_columns()
+# --- Schema: column list builders (end) ---
+
+# --- Row helpers (start) ---
 
 
 def _on_off(value: bool) -> str:
     return "on" if value else "off"
+
+
+def _prefixed_one_hot(prefix: str, encoding: dict[str, int]) -> dict[str, Any]:
+    return {f"{prefix} {col}": value for col, value in encoding.items()}
+
+
+def _is_captain(player: Team.Player | None, captain: Team.Player | None) -> bool:
+    if player is None or captain is None:
+        return False
+    return player.get_player().casefold() == captain.get_player().casefold()
 
 
 def _field_synergy_value(team: Team, pos_a: str, pos_b: str) -> int:
@@ -125,17 +291,9 @@ def _field_synergy_value(team: Team, pos_a: str, pos_b: str) -> int:
         return -1
     return NO_SYNERGY
 
+# --- Row helpers (end) ---
 
-def _field_position_for_player(team: Team, player_name: str) -> str:
-    for role in ROLE_ENCODING:
-        fielder = team.positions.get(role)
-        if fielder and fielder.get_player() == player_name:
-            return role
-    return ""
-
-
-def _prefixed_one_hot(prefix: str, encoding: dict[str, int]) -> dict[str, Any]:
-    return {f"{prefix} {col}": value for col, value in encoding.items()}
+# --- Game row builder (start) ---
 
 
 def build_game_columns(game: Game) -> dict[str, Any]:
@@ -159,37 +317,63 @@ def build_game_columns(game: Game) -> dict[str, Any]:
     row["Obstacles Level"] = info["obstacles"]
     return row
 
+# --- Game row builder (end) ---
 
-def build_team_columns(team: Team, team_num: int) -> dict[str, Any]:
-    """Team field synergies, pitcher stats, and per-batter player/role + stats."""
+# --- Team row builder (start) ---
+
+
+def build_team_columns(
+    team: Team,
+    team_num: int,
+    captain: Team.Player | None = None,
+) -> dict[str, Any]:
+    """Team data: defense (synergies, field abilities), pitching, batting (by order)."""
     prefix = f"Team {team_num}"
     row: dict[str, Any] = {}
 
+    # --- Team row: field synergies (start) ---
     for col, (pos_a, pos_b) in FIELD_SYNERGY_COLS.items():
         row[f"{prefix} {col}"] = _field_synergy_value(team, pos_a, pos_b)
+    # --- Team row: field synergies (end) ---
 
+    # --- Team row: pitching (start) ---
     pitcher = team.positions.get(PITCHER)
     row[f"{prefix} Curveball Speed"] = pitcher.curveball_speed if pitcher else ""
     row[f"{prefix} Charge Pitch Speed"] = pitcher.charge_pitch_speed if pitcher else ""
     row[f"{prefix} Curve"] = pitcher.curve if pitcher else ""
+    row[f"{prefix} Captain"] = _is_captain(pitcher, captain)
+    row.update(
+        _prefixed_one_hot(
+            prefix,
+            encode_pitching_star(pitcher.pitching_star if pitcher else None),
+        )
+    )
+    row.update(
+        _prefixed_one_hot(
+            prefix,
+            encode_ability(pitcher.ability if pitcher else None),
+        )
+    )
+    # --- Team row: pitching (end) ---
 
+    # --- Team row: batting & fielding (start) ---
     for slot in range(1, LINEUP_SIZE + 1):
         slot_prefix = f"{prefix} Batter {slot}"
         if slot > len(team.batting_players):
             row[f"{slot_prefix} Player"] = ""
-            for col in role_one_hot_columns():
-                row[f"{slot_prefix} {col}"] = 0
-            for col in BATTER_STAT_COLS:
+            row[f"{slot_prefix} Captain"] = False
+            for col in battingCols:
                 row[f"{slot_prefix} {col}"] = ""
+            row.update(_prefixed_one_hot(slot_prefix, encode_batting_star(None)))
+            for col in fieldingStatCols:
+                row[f"{slot_prefix} {col}"] = ""
+            row.update(_prefixed_one_hot(slot_prefix, encode_ability(None)))
             continue
 
         batter = team.batting_players[slot - 1]
-        name = batter.get_player()
-        field_role = _field_position_for_player(team, name)
 
-        row[f"{slot_prefix} Player"] = name
-        row.update(_prefixed_one_hot(slot_prefix, encode_role(field_role)))
-
+        row[f"{slot_prefix} Player"] = batter.get_player()
+        row[f"{slot_prefix} Captain"] = _is_captain(batter, captain)
         row[f"{slot_prefix} Slap Hit Power"] = batter.slap_hit_power
         row[f"{slot_prefix} Charge Hit Power"] = batter.charge_hit_power
         row[f"{slot_prefix} Bunting"] = batter.bunting
@@ -206,13 +390,20 @@ def build_team_columns(team: Team, team_num: int) -> dict[str, Any]:
 
         trajectory = batter.hit_trajectory.strip().lower()
         row[f"{slot_prefix} Hit Trajectory"] = TRAJECTORY_MAP.get(trajectory, 1)
-
-        row[f"{slot_prefix} Fielding"] = batter.fielding if field_role else ""
-        row[f"{slot_prefix} Outfield Throwing Speed"] = (
-            batter.outfield_throwing_speed if field_role else ""
+        row.update(
+            _prefixed_one_hot(slot_prefix, encode_batting_star(batter.batting_star))
         )
 
+        row[f"{slot_prefix} Fielding"] = batter.fielding
+        row[f"{slot_prefix} Outfield Throwing Speed"] = batter.outfield_throwing_speed
+        row.update(_prefixed_one_hot(slot_prefix, encode_ability(batter.ability)))
+
+    # --- Team row: batting & fielding (end) ---
     return row
+
+# --- Team row builder (end) ---
+
+# --- Match row assembly (start) ---
 
 
 def build_match_row(
@@ -220,32 +411,24 @@ def build_match_row(
     game: Game,
 ) -> dict[str, Any]:
     """One CSV row for a full game."""
-    row = {col: "" for col in get_all_columns()}
+    row = {col: "" for col in build_all_columns()}
     row.update(build_game_columns(game))
 
     for team_num, (_, team) in enumerate(teams, start=1):
         if team_num > 2:
             break
-        row.update(build_team_columns(team, team_num))
+        captain = game.team_1_captain if team_num == 1 else game.team_2_captain
+        row.update(build_team_columns(team, team_num, captain))
 
     return row
 
 
-def build_match_rows(
-    teams: list[tuple[str, Team]],
-    game: Game,
-) -> list[dict[str, Any]]:
-    """One entry per game."""
-    return [build_match_row(teams, game)]
+# --- Match row assembly (end) ---
+
+# --- CSV export (start) ---
 
 
-def rows_to_sheet_data(rows: list[dict[str, Any]]) -> tuple[list[str], list[list[Any]]]:
-    headers = get_all_columns()
-    body = [[row.get(col, "") for col in headers] for row in rows]
-    return headers, body
-
-
-def create_match_sheet(
+def create_results_csv(
     teams: list[tuple[str, Team]],
     game: Game,
     output_path: Path | str = DEFAULT_OUTPUT,
@@ -256,7 +439,7 @@ def create_match_sheet(
     path.parent.mkdir(parents=True, exist_ok=True)
 
     row = build_match_row(teams, game)
-    headers = get_all_columns()
+    headers = build_all_columns()
     body = [row.get(col, "") for col in headers]
 
     file_exists = path.exists() and path.stat().st_size > 0
@@ -270,4 +453,6 @@ def create_match_sheet(
     return path
 
 
-create_csv_sheet = create_match_sheet
+# --- CSV export (end) ---
+
+# --- Match row builders (end) ---
