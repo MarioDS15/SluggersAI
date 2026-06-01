@@ -5,8 +5,8 @@ from __future__ import annotations
 from dataclasses import dataclass
 from typing import Any
 
-from player import Player as RosterPlayer
-from team import Team
+from .player import Player as RosterPlayer
+from .team import Team
 
 TEAM_LABELS = ("Team 1", "Team 2")
 

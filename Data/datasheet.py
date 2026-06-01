@@ -6,11 +6,11 @@ import csv
 from pathlib import Path
 from typing import TYPE_CHECKING, Any
 
-from game import Game, STADIUMS
-from synergy import BAD_SYNERGY, GOOD_SYNERGY, NO_SYNERGY
+from .game import Game, STADIUMS
+from .synergy import BAD_SYNERGY, GOOD_SYNERGY, NO_SYNERGY
 
 if TYPE_CHECKING:
-    from player import Player
+    from .player import Player
 
 # --- One-hot encoding: constants (start) ---
 
@@ -133,7 +133,7 @@ def encode_batting_star(star: str | None) -> dict[str, int]:
 # --- One-hot encoding: columns & encode (end) ---
 
 # --- Match row builders (start) ---
-from team import (
+from .team import (
     CATCHER,
     CENTER_FIELD,
     FIRST_BASE,

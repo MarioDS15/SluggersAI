@@ -4,10 +4,10 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING
 
-from team import ALL_RELATION_KEYS, parse_relation_key
+from .team import ALL_RELATION_KEYS, parse_relation_key
 
 if TYPE_CHECKING:
-    from team import Team
+    from .team import Team
 
     LineupPlayer = Team.Player
 else:

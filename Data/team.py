@@ -5,7 +5,7 @@ from __future__ import annotations
 from dataclasses import dataclass, field
 from typing import Any
 
-from player import Player as RosterPlayer
+from .player import Player as RosterPlayer
 
 PITCHER = "pitcher"
 CATCHER = "catcher"
@@ -146,7 +146,7 @@ class Team:
         self.positions[position] = player
 
     def update_synergy(self) -> None:
-        from synergy import update_team_synergy
+        from .synergy import update_team_synergy
 
         update_team_synergy(self)
 
@@ -166,7 +166,7 @@ class Team:
             )
             lines.append(f"  {label}: {name}")
         lines.append("")
-        from synergy import batting_synergy_label, link_label
+        from .synergy import batting_synergy_label, link_label
 
         lines.append("Fielding relations:")
         for key in ALL_RELATION_KEYS:

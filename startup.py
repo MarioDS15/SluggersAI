@@ -4,21 +4,21 @@ from __future__ import annotations
 
 import csv
 import json
-import sys
 from pathlib import Path
 from typing import Any
+
+from Data.datasheet import (
+    DEFAULT_OUTPUT,
+    create_results_csv,
+    register_encodings_from_roster,
+)
+from Data.game import Game, game_from_config, print_game_verification, setup_game
+from Data.player import Player
+from Data.team import DEFENSIVE_POSITIONS, POSITION_LABELS, Team
 
 ROOT_DIR = Path(__file__).resolve().parent
 DATA_DIR = ROOT_DIR / "Data"
 CONFIG_PATH = ROOT_DIR / "config.json"
-
-if str(DATA_DIR) not in sys.path:
-    sys.path.insert(0, str(DATA_DIR))
-
-from datasheet import register_encodings_from_roster  # noqa: E402
-from game import Game, game_from_config, print_game_verification, setup_game  # noqa: E402
-from player import Player  # noqa: E402
-from team import DEFENSIVE_POSITIONS, POSITION_LABELS, Team  # noqa: E402
 
 TeamPlayer = Team.Player
 
@@ -329,8 +329,6 @@ def print_teams_verification(teams: list[tuple[str, Team]]) -> None:
 
 def run_results_export() -> None:
     """Load lineups and game settings, then write Data/results.csv."""
-    from datasheet import DEFAULT_OUTPUT, create_results_csv
-
     print(f"Loaded {len(PLAYERS)} players from roster.\n")
 
     if _prompt_yes_no(f"Use lineup and game settings from {CONFIG_PATH.name}? (y/n): "):
