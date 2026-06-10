@@ -14,7 +14,7 @@ Builds `Data/results.csv` from Mario Super Sluggers roster stats, team lineups, 
 SlugAI/
 ├── startup.py          # Entry point (run this)
 ├── config.json         # Optional teams + game preset
-├── Data/               # Data extraction code + CSVs
+├── Data/               # Data extraction from Input code + Player CSVs
 │   ├── player.py
 │   ├── team.py
 │   ├── synergy.py
